@@ -22,15 +22,16 @@ class DiagnosisTest extends TestCase
 
         // 1. Create a disease (Penyakit)
         $this->penyakit = Penyakit::create([
+            'id_penyakit' => 'P01',
             'nama_penyakit' => 'Demam Berdarah Dengue (DBD)',
             'solusi' => 'Istirahat total dan perbanyak minum air putih.',
         ]);
 
         // 2. Create symptoms (Gejala)
         $gejalaList = [
-            1 => 'Demam tinggi mendadak',
-            2 => 'Bintik merah pada kulit',
-            3 => 'Nyeri sendi',
+            'G01' => 'Demam tinggi mendadak',
+            'G02' => 'Bintik merah pada kulit',
+            'G03' => 'Nyeri sendi',
         ];
 
         foreach ($gejalaList as $id => $nama) {
@@ -41,14 +42,14 @@ class DiagnosisTest extends TestCase
         }
 
         // 3. Map Rules (Many-to-Many)
-        // DBD requires symptoms 1 and 2
+        // DBD requires symptoms G01 and G02 (Total = 2)
         AturanRule::create([
             'id_penyakit' => $this->penyakit->id_penyakit,
-            'id_gejala' => $this->gejalas[1]->id_gejala,
+            'id_gejala' => $this->gejalas['G01']->id_gejala,
         ]);
         AturanRule::create([
             'id_penyakit' => $this->penyakit->id_penyakit,
-            'id_gejala' => $this->gejalas[2]->id_gejala,
+            'id_gejala' => $this->gejalas['G02']->id_gejala,
         ]);
     }
 
@@ -59,8 +60,8 @@ class DiagnosisTest extends TestCase
     {
         $response = $this->get(route('beranda'));
 
-        $response.assertStatus(200);
-        $response.assertSee('Deteksi Awal Penyakit Demam Anda');
+        $response->assertStatus(200);
+        $response->assertSee('Deteksi Awal Penyakit Demam Anda');
     }
 
     /**
@@ -70,75 +71,100 @@ class DiagnosisTest extends TestCase
     {
         $response = $this->get(route('konsultasi.index'));
 
-        $response.assertStatus(200);
-        $response.assertSee('Demam tinggi mendadak');
-        $response.assertSee('Bintik merah pada kulit');
+        $response->assertStatus(200);
+        $response->assertSee('Demam tinggi mendadak');
+        $response->assertSee('Bintik merah pada kulit');
     }
 
     /**
-     * Test a successful exact match diagnosis.
+     * Test a successful exact match diagnosis (100% score).
      */
     public function test_successful_exact_match_diagnosis(): void
     {
-        // User inputs exact symptoms: 1 and 2
+        // User inputs exact symptoms: G01 and G02
         $response = $this->post(route('konsultasi.proses'), [
             'nama_pasien' => 'Ahmad Riau',
             'id_gejala' => [
-                $this->gejalas[1]->id_gejala,
-                $this->gejalas[2]->id_gejala,
+                'G01',
+                'G02',
             ],
         ]);
 
-        // Expect redirect to result page
         $riwayat = RiwayatDiagnosa::first();
         $this->assertNotNull($riwayat);
         $this->assertEquals('Ahmad Riau', $riwayat->nama_pasien);
         $this->assertEquals('Demam Berdarah Dengue (DBD)', $riwayat->hasil_penyakit);
+        
+        // Assert JSON details
+        $this->assertEquals(100.0, $riwayat->gejala_dipilih['score']);
+        $this->assertCount(2, $riwayat->gejala_dipilih['matched']);
 
-        $response.assertRedirect(route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]));
+        $response->assertRedirect(route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]));
     }
 
     /**
      * Test a successful subset match diagnosis (user selects extra symptoms).
+     * Score should still be 100% because all required rule symptoms (G01, G02) are selected.
      */
     public function test_successful_subset_match_diagnosis(): void
     {
-        // User inputs 1, 2 (required for DBD) AND symptom 3 (extra)
+        // User inputs G01, G02 (required for DBD) AND G03 (extra)
         $response = $this->post(route('konsultasi.proses'), [
             'nama_pasien' => 'Ahmad Riau',
             'id_gejala' => [
-                $this->gejalas[1]->id_gejala,
-                $this->gejalas[2]->id_gejala,
-                $this->gejalas[3]->id_gejala, // Extra symptom
+                'G01',
+                'G02',
+                'G03',
             ],
         ]);
 
         $riwayat = RiwayatDiagnosa::first();
         $this->assertNotNull($riwayat);
         $this->assertEquals('Demam Berdarah Dengue (DBD)', $riwayat->hasil_penyakit);
-        
-        $response.assertRedirect(route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]));
+        $this->assertEquals(100.0, $riwayat->gejala_dipilih['score']);
+
+        $response->assertRedirect(route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]));
     }
 
     /**
-     * Test that non-specific symptoms show a warning message.
+     * Test that partial match (score >= 50%) works.
+     * User selects G01 but not G02. Match score is 50% (1/2).
      */
-    public function test_non_specific_symptoms_return_warning(): void
+    public function test_partial_match_diagnosis_above_threshold(): void
     {
-        // User only inputs symptom 3 (which doesn't map to any disease rules)
-        $response = $this->from(route('konsultasi.index'))
-            ->post(route('konsultasi.proses'), [
-                'nama_pasien' => 'Ahmad Riau',
-                'id_gejala' => [
-                    $this->gejalas[3]->id_gejala,
-                ],
-            ]);
+        $response = $this->post(route('konsultasi.proses'), [
+            'nama_pasien' => 'Ahmad Riau',
+            'id_gejala' => [
+                'G01',
+            ],
+        ]);
 
-        // Expect redirect back with warning
-        $response.assertRedirect(route('konsultasi.index'));
-        $response.assertSessionHas('warning', 'Gejala tidak spesifik. Silakan isi ulang kuesioner dengan lebih akurat atau segera lakukan konsultasi langsung ke Klinik Amanah Riau Kepri.');
-        
-        // Assert no records created in history
-        $this->assertEquals(0, RiwayatDiagnosa::count());
+        $riwayat = RiwayatDiagnosa::first();
+        $this->assertNotNull($riwayat);
+        $this->assertEquals('Demam Berdarah Dengue (DBD)', $riwayat->hasil_penyakit);
+        $this->assertEquals(50.0, $riwayat->gejala_dipilih['score']);
+
+        $response->assertRedirect(route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]));
+    }
+
+    /**
+     * Test that match under 50% threshold results in "Gejala Tidak Spesifik".
+     * Since G03 is not in DBD rules, match is 0% (0/2).
+     */
+    public function test_match_below_threshold_returns_non_specific(): void
+    {
+        $response = $this->post(route('konsultasi.proses'), [
+            'nama_pasien' => 'Ahmad Riau',
+            'id_gejala' => [
+                'G03',
+            ],
+        ]);
+
+        $riwayat = RiwayatDiagnosa::first();
+        $this->assertNotNull($riwayat);
+        $this->assertEquals('Gejala Tidak Spesifik', $riwayat->hasil_penyakit);
+        $this->assertEquals(0.0, $riwayat->gejala_dipilih['score']);
+
+        $response->assertRedirect(route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]));
     }
 }

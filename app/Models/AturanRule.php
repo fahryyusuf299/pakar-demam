@@ -10,6 +10,8 @@ class AturanRule extends Model
 
     protected $primaryKey = 'id_rule';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'id_penyakit',
         'id_gejala',

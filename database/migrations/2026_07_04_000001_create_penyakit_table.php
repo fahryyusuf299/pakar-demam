@@ -9,13 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function run(): void
+    public function up(): void
     {
         Schema::create('penyakit', function (Blueprint $table) {
-            $table->id('id_penyakit');
+            $table->string('id_penyakit')->primary();
             $table->string('nama_penyakit');
             $table->text('solusi');
-            $table->timestamps();
         });
     }
 

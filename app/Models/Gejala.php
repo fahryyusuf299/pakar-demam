@@ -17,7 +17,10 @@ class Gejala extends Model
 
     protected $keyType = 'string';
 
+    public $timestamps = false;
+
     protected $fillable = [
+        'id_gejala',
         'nama_gejala',
     ];
 

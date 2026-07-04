@@ -39,72 +39,79 @@ class DiagnosisController extends Controller
         // 2. Fetch all diseases with their mapped symptoms
         $penyakits = Penyakit::with('gejala')->get();
 
-        $matchedPenyakit = null;
+        $scores = [];
 
-        // --- ALGORITMA FORWARD CHAINING ---
-        
-        // Tahap 1: Pencarian Exact Set Match
-        // Mencari penyakit yang memiliki kumpulan gejala yang SAMA PERSIS dengan input user.
         foreach ($penyakits as $penyakit) {
-            $requiredGejalaIds = $penyakit->gejala->pluck('id_gejala')->toArray();
+            $ruleGejalaIds = $penyakit->gejala->pluck('id_gejala')->toArray();
+            $totalRuleGejala = count($ruleGejalaIds);
 
-            if (empty($requiredGejalaIds)) {
+            if ($totalRuleGejala === 0) {
                 continue;
             }
 
-            $tempRequired = $requiredGejalaIds;
-            $tempUser = $userGejalaIds;
-            sort($tempRequired);
-            sort($tempUser);
+            // Hitung irisan gejala pilihan user dengan aturan penyakit
+            $matchingGejalaIds = array_intersect($userGejalaIds, $ruleGejalaIds);
+            $matchCount = count($matchingGejalaIds);
 
-            if ($tempRequired === $tempUser) {
-                $matchedPenyakit = $penyakit;
-                break;
-            }
+            // Rumus Score = (Jumlah Cocok / Total Wajib) * 100%
+            $score = ($matchCount / $totalRuleGejala) * 100;
+
+            $scores[] = [
+                'penyakit' => $penyakit,
+                'score' => $score,
+                'match_count' => $matchCount,
+                'matching_gejala_ids' => array_values($matchingGejalaIds)
+            ];
         }
 
-        // Tahap 2: Pencarian Subset Match (jika Exact Set Match tidak ditemukan)
-        // Mencari penyakit di mana SEMUA gejala wajib penyakit tersebut ada dalam pilihan user (penyakit adalah bagian dari input user).
-        if (!$matchedPenyakit) {
-            foreach ($penyakits as $penyakit) {
-                $requiredGejalaIds = $penyakit->gejala->pluck('id_gejala')->toArray();
-
-                if (empty($requiredGejalaIds)) {
-                    continue;
-                }
-
-                // Mengecek apakah semua gejala wajib penyakit merupakan subset dari pilihan user
-                $diff = array_diff($requiredGejalaIds, $userGejalaIds);
-                if (empty($diff)) {
-                    $matchedPenyakit = $penyakit;
-                    break;
-                }
+        // Urutkan skor secara descending
+        // Jika skor sama, urutkan berdasarkan jumlah gejala cocok terbanyak
+        usort($scores, function ($a, $b) {
+            if (abs($b['score'] - $a['score']) < 0.0001) {
+                return $b['match_count'] <=> $a['match_count'];
             }
-        }
+            return $b['score'] <=> $a['score'];
+        });
 
-        // 3. Respon Hasil Pencocokan
-        if ($matchedPenyakit) {
-            // Ambil semua nama gejala yang dipilih user untuk disimpan ke dalam riwayat
-            $selectedGejalaNames = Gejala::whereIn('id_gejala', $userGejalaIds)
+        $topMatch = !empty($scores) ? $scores[0] : null;
+
+        // Ambil semua nama gejala yang dipilih user untuk disimpan ke dalam riwayat
+        $selectedGejalaNames = Gejala::whereIn('id_gejala', $userGejalaIds)
+            ->orderBy('id_gejala', 'asc')
+            ->pluck('nama_gejala')
+            ->toArray();
+
+        if ($topMatch && $topMatch['score'] >= 50) {
+            $matchedPenyakit = $topMatch['penyakit'];
+            $hasilPenyakit = $matchedPenyakit->nama_penyakit;
+            $solusi = $matchedPenyakit->solusi;
+            $scoreValue = round($topMatch['score'], 1);
+
+            // Ambil semua nama gejala yang cocok
+            $matchedGejalaNames = Gejala::whereIn('id_gejala', $topMatch['matching_gejala_ids'])
                 ->orderBy('id_gejala', 'asc')
                 ->pluck('nama_gejala')
                 ->toArray();
-
-            // Simpan riwayat diagnosa ke database
-            $riwayat = RiwayatDiagnosa::create([
-                'nama_pasien' => $request->input('nama_pasien'),
-                'gejala_dipilih' => $selectedGejalaNames,
-                'hasil_penyakit' => $matchedPenyakit->nama_penyakit,
-                'solusi' => $matchedPenyakit->solusi,
-            ]);
-
-            return redirect()->route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]);
+        } else {
+            $hasilPenyakit = 'Gejala Tidak Spesifik';
+            $solusi = 'Gejala tidak spesifik untuk mengarah ke penyakit infeksi dalam basis pengetahuan. Silakan isi ulang kuesioner atau segera lakukan konsultasi langsung ke Klinik Amanah Riau Kepri.';
+            $scoreValue = $topMatch ? round($topMatch['score'], 1) : 0;
+            $matchedGejalaNames = [];
         }
 
-        // Jika tidak ada penyakit yang cocok 100%
-        return redirect()->back()
-            ->withInput()
-            ->with('warning', 'Gejala tidak spesifik. Silakan isi ulang kuesioner dengan lebih akurat atau segera lakukan konsultasi langsung ke Klinik Amanah Riau Kepri.');
+        // Simpan riwayat diagnosa ke database
+        $riwayat = RiwayatDiagnosa::create([
+            'nama_pasien' => $request->input('nama_pasien'),
+            'gejala_dipilih' => [
+                'selected' => $selectedGejalaNames,
+                'matched' => $matchedGejalaNames,
+                'score' => $scoreValue,
+            ],
+            'hasil_penyakit' => $hasilPenyakit,
+            'solusi' => $solusi,
+        ]);
+
+        return redirect()->route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]);
     }
 
     /**

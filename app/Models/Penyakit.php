@@ -17,7 +17,10 @@ class Penyakit extends Model
 
     protected $keyType = 'string';
 
+    public $timestamps = false;
+
     protected $fillable = [
+        'id_penyakit',
         'nama_penyakit',
         'solusi',
     ];

@@ -9,15 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function run(): void
+    public function up(): void
     {
         Schema::create('riwayat_diagnosa', function (Blueprint $table) {
-            $table->id('id_diagnosa');
+            $table->uuid('id_diagnosa')->primary();
             $table->string('nama_pasien');
-            $table->json('gejala_dipilih'); // Store selected symptom names or IDs as JSON
+            $table->timestamp('tanggal_konsultasi')->nullable();
+            $table->json('gejala_dipilih'); // Use standard json for compatibility
             $table->string('hasil_penyakit');
             $table->text('solusi');
-            $table->timestamps();
         });
     }
 

@@ -9,26 +9,22 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function run(): void
+    public function up(): void
     {
         Schema::create('aturan_rule', function (Blueprint $table) {
             $table->id('id_rule');
             
-            // Foreign key to penyakit table
-            $table->unsignedBigInteger('id_penyakit');
+            $table->string('id_penyakit');
             $table->foreign('id_penyakit')
                   ->references('id_penyakit')
                   ->on('penyakit')
                   ->onDelete('cascade');
 
-            // Foreign key to gejala table
-            $table->unsignedBigInteger('id_gejala');
+            $table->string('id_gejala');
             $table->foreign('id_gejala')
                   ->references('id_gejala')
                   ->on('gejala')
                   ->onDelete('cascade');
-
-            $table->timestamps();
         });
     }
 
