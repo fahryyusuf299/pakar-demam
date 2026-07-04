@@ -30,8 +30,9 @@ class DiagnosisTest extends TestCase
         // 2. Create symptoms (Gejala)
         $gejalaList = [
             'G01' => 'Demam tinggi mendadak',
-            'G02' => 'Bintik merah pada kulit',
-            'G03' => 'Nyeri sendi',
+            'G02' => 'Demam bertahap',
+            'G03' => 'Bintik merah pada kulit',
+            'G04' => 'Nyeri sendi',
         ];
 
         foreach ($gejalaList as $id => $nama) {
@@ -42,14 +43,14 @@ class DiagnosisTest extends TestCase
         }
 
         // 3. Map Rules (Many-to-Many)
-        // DBD requires symptoms G01 and G02 (Total = 2)
+        // DBD requires symptoms G01 (pola_demam) and G03 (gejala penyerta)
         AturanRule::create([
             'id_penyakit' => $this->penyakit->id_penyakit,
             'id_gejala' => $this->gejalas['G01']->id_gejala,
         ]);
         AturanRule::create([
             'id_penyakit' => $this->penyakit->id_penyakit,
-            'id_gejala' => $this->gejalas['G02']->id_gejala,
+            'id_gejala' => $this->gejalas['G03']->id_gejala,
         ]);
     }
 
@@ -81,12 +82,12 @@ class DiagnosisTest extends TestCase
      */
     public function test_successful_exact_match_diagnosis(): void
     {
-        // User inputs exact symptoms: G01 and G02
+        // User inputs exact symptoms: G01 (radio) and G03 (checkbox)
         $response = $this->post(route('konsultasi.proses'), [
             'nama_pasien' => 'Ahmad Riau',
+            'pola_demam' => 'G01',
             'id_gejala' => [
-                'G01',
-                'G02',
+                'G03',
             ],
         ]);
 
@@ -95,7 +96,7 @@ class DiagnosisTest extends TestCase
         $this->assertEquals('Ahmad Riau', $riwayat->nama_pasien);
         $this->assertEquals('Demam Berdarah Dengue (DBD)', $riwayat->hasil_penyakit);
         
-        // Assert JSON details
+        // Assert JSON details (Score should be 100%)
         $this->assertEquals(100.0, $riwayat->gejala_dipilih['score']);
         $this->assertCount(2, $riwayat->gejala_dipilih['matched']);
 
@@ -103,40 +104,39 @@ class DiagnosisTest extends TestCase
     }
 
     /**
-     * Test a successful subset match diagnosis (user selects extra symptoms).
-     * Score should still be 100% because all required rule symptoms (G01, G02) are selected.
+     * Test a successful subset match diagnosis with penalty.
+     * Base score is 100%. 1 extra symptom (G04) results in -2% penalty. Final score = 98%.
      */
     public function test_successful_subset_match_diagnosis(): void
     {
-        // User inputs G01, G02 (required for DBD) AND G03 (extra)
+        // User inputs G01, G03 (required for DBD) AND G04 (extra)
         $response = $this->post(route('konsultasi.proses'), [
             'nama_pasien' => 'Ahmad Riau',
+            'pola_demam' => 'G01',
             'id_gejala' => [
-                'G01',
-                'G02',
                 'G03',
+                'G04',
             ],
         ]);
 
         $riwayat = RiwayatDiagnosa::first();
         $this->assertNotNull($riwayat);
         $this->assertEquals('Demam Berdarah Dengue (DBD)', $riwayat->hasil_penyakit);
-        $this->assertEquals(100.0, $riwayat->gejala_dipilih['score']);
+        $this->assertEquals(98.0, $riwayat->gejala_dipilih['score']);
 
         $response->assertRedirect(route('konsultasi.hasil', ['id' => $riwayat->id_diagnosa]));
     }
 
     /**
      * Test that partial match (score >= 50%) works.
-     * User selects G01 but not G02. Match score is 50% (1/2).
+     * User selects G01 but not G03. Match score is 50% (1/2).
      */
     public function test_partial_match_diagnosis_above_threshold(): void
     {
         $response = $this->post(route('konsultasi.proses'), [
             'nama_pasien' => 'Ahmad Riau',
-            'id_gejala' => [
-                'G01',
-            ],
+            'pola_demam' => 'G01',
+            'id_gejala' => [],
         ]);
 
         $riwayat = RiwayatDiagnosa::first();
@@ -149,15 +149,14 @@ class DiagnosisTest extends TestCase
 
     /**
      * Test that match under 50% threshold results in "Gejala Tidak Spesifik".
-     * Since G03 is not in DBD rules, match is 0% (0/2).
+     * User selects G02 (which is not in rule). Base score is 0%, final is 0%.
      */
     public function test_match_below_threshold_returns_non_specific(): void
     {
         $response = $this->post(route('konsultasi.proses'), [
             'nama_pasien' => 'Ahmad Riau',
-            'id_gejala' => [
-                'G03',
-            ],
+            'pola_demam' => 'G02',
+            'id_gejala' => [],
         ]);
 
         $riwayat = RiwayatDiagnosa::first();

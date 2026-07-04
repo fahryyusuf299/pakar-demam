@@ -26,15 +26,18 @@ class DiagnosisController extends Controller
         // 1. Validate the input
         $request->validate([
             'nama_pasien' => 'required|string|max:255',
-            'id_gejala' => 'required|array|min:1',
+            'pola_demam' => 'required|string|exists:gejala,id_gejala',
+            'id_gejala' => 'nullable|array',
             'id_gejala.*' => 'string|exists:gejala,id_gejala',
         ], [
             'nama_pasien.required' => 'Nama pasien wajib diisi.',
-            'id_gejala.required' => 'Pilih minimal satu gejala untuk konsultasi.',
-            'id_gejala.min' => 'Pilih minimal satu gejala untuk konsultasi.',
+            'pola_demam.required' => 'Pola demam utama wajib dipilih.',
         ]);
 
         $userGejalaIds = $request->input('id_gejala', []);
+        if ($request->filled('pola_demam')) {
+            $userGejalaIds[] = $request->input('pola_demam');
+        }
 
         // 2. Fetch all diseases with their mapped symptoms
         $penyakits = Penyakit::with('gejala')->get();
@@ -53,8 +56,15 @@ class DiagnosisController extends Controller
             $matchingGejalaIds = array_intersect($userGejalaIds, $ruleGejalaIds);
             $matchCount = count($matchingGejalaIds);
 
-            // Rumus Score = (Jumlah Cocok / Total Wajib) * 100%
-            $score = ($matchCount / $totalRuleGejala) * 100;
+            // Rumus Base Score = (Jumlah Cocok / Total Wajib) * 100%
+            $baseScore = ($matchCount / $totalRuleGejala) * 100;
+
+            // Hitung gejala tambahan (pilihan user yang TIDAK ADA di rule)
+            $extraSymptoms = array_diff($userGejalaIds, $ruleGejalaIds);
+            $penalty = count($extraSymptoms) * 2;
+
+            // Skor akhir = Base Score - Penalty (min 0)
+            $score = max(0, $baseScore - $penalty);
 
             $scores[] = [
                 'penyakit' => $penyakit,
