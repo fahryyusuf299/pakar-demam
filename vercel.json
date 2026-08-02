@@ -1,6 +1,7 @@
 {
   "version": 2,
   "framework": null,
+  "outputDirectory": "public",
   "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "functions": {
     "api/index.php": {
