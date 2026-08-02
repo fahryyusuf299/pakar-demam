@@ -3,8 +3,8 @@
 
     <div class="max-w-3xl mx-auto">
         @php
-            $categories = [
-                'Karakteristik Demam' => ['G01', 'G02', 'G35'],
+            $definedCategories = [
+                'Karakteristik Demam' => ['G02', 'G35'],
                 'Gejala Pencernaan' => ['G05', 'G13', 'G14', 'G15', 'G16', 'G17', 'G18', 'G34'],
                 'Gejala Pernapasan & Tenggorokan' => ['G27', 'G28', 'G29', 'G30', 'G31', 'G38', 'G39'],
                 'Gejala Kulit & Tubuh' => [
@@ -13,6 +13,23 @@
                     'G26', 'G32', 'G33', 'G36', 'G37', 'G40'
                 ]
             ];
+
+            // Kumpulkan ID gejala yang sudah terpetakan di kategori
+            $mappedGejalaIds = [];
+            foreach ($definedCategories as $ids) {
+                $mappedGejalaIds = array_merge($mappedGejalaIds, $ids);
+            }
+
+            // Cari gejala baru dari database yang belum masuk kategori (misal gejala baru buatan admin G41, dst)
+            $unmappedGejalaIds = $gejalas->pluck('id_gejala')
+                ->reject(fn($id) => in_array($id, $mappedGejalaIds) || $id === 'G01')
+                ->values()
+                ->toArray();
+
+            $categories = $definedCategories;
+            if (!empty($unmappedGejalaIds)) {
+                $categories['Gejala Tambahan / Lainnya'] = $unmappedGejalaIds;
+            }
         @endphp
         
         <!-- Header -->
@@ -114,40 +131,22 @@
                                 @endif
                                 <h2 class="text-lg font-bold text-slate-800 font-outfit">
                                     {{ $categoryName }}
-                                    @if($categoryName === 'Karakteristik Demam')
-                                        <span class="text-red-500 text-sm">*</span>
-                                    @endif
                                 </h2>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 @foreach($categoryGejalas as $gejala)
-                                    @if($gejala->id_gejala === 'G01' || $gejala->id_gejala === 'G02')
-                                        <label class="group flex items-start p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-medical-50/40 hover:border-medical-200 transition-all duration-200 cursor-pointer">
-                                            <div class="flex items-center h-5">
-                                                <input type="radio" name="pola_demam" value="{{ $gejala->id_gejala }}" id="rad-{{ $gejala->id_gejala }}"
-                                                       @if(old('pola_demam') === $gejala->id_gejala) checked @endif
-                                                       class="w-5 h-5 text-medical-600 border-slate-300 focus:ring-medical-500 cursor-pointer">
-                                            </div>
-                                            <div class="ml-3 text-sm">
-                                                <span class="font-bold text-slate-800 group-hover:text-slate-900 transition-colors">
-                                                     {{ $gejala->nama_gejala }}
-                                                </span>
-                                            </div>
-                                        </label>
-                                    @else
-                                        <label class="group flex items-start p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-medical-50/40 hover:border-medical-200 transition-all duration-200 cursor-pointer">
-                                            <div class="flex items-center h-5">
-                                                <input type="checkbox" name="id_gejala[]" value="{{ $gejala->id_gejala }}" id="chk-{{ $gejala->id_gejala }}"
-                                                       @if(is_array(old('id_gejala')) && in_array($gejala->id_gejala, old('id_gejala'))) checked @endif
-                                                       class="w-5 h-5 rounded text-medical-600 border-slate-300 focus:ring-medical-500 cursor-pointer">
-                                            </div>
-                                            <div class="ml-3 text-sm">
-                                                <span class="font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
-                                                     {{ $gejala->nama_gejala }}
-                                                </span>
-                                            </div>
-                                        </label>
-                                    @endif
+                                    <label class="group flex items-start p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-medical-50/40 hover:border-medical-200 transition-all duration-200 cursor-pointer">
+                                        <div class="flex items-center h-5">
+                                            <input type="checkbox" name="id_gejala[]" value="{{ $gejala->id_gejala }}" id="chk-{{ $gejala->id_gejala }}"
+                                                   @if(is_array(old('id_gejala')) && in_array($gejala->id_gejala, old('id_gejala'))) checked @endif
+                                                   class="w-5 h-5 rounded text-medical-600 border-slate-300 focus:ring-medical-500 cursor-pointer">
+                                        </div>
+                                        <div class="ml-3 text-sm">
+                                            <span class="font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                                                 {{ $gejala->nama_gejala }}
+                                            </span>
+                                        </div>
+                                    </label>
                                 @endforeach
                             </div>
                         </div>
@@ -199,6 +198,48 @@
         </div>
     </div>
 
+    <!-- Confirmation Modal Before Loading -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full mx-4 border border-slate-100 space-y-5 transform scale-95 transition-transform duration-300">
+            <div class="flex items-center space-x-4 pb-3 border-b border-slate-100">
+                <div class="bg-medical-50 text-medical-600 p-3 rounded-2xl">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-outfit font-extrabold text-slate-800 text-lg">Konfirmasi Data Konsultasi</h3>
+                    <p class="text-xs text-slate-500 font-semibold">Periksa kembali data Anda sebelum diproses</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm">
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Nama Pasien</span>
+                    <p id="confirm-nama-pasien" class="font-bold text-slate-800 text-base bg-slate-50 p-3 rounded-xl border border-slate-100"></p>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gejala Dipilih</span>
+                        <span id="confirm-jumlah-gejala" class="text-xs font-bold text-medical-600 bg-medical-50 px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div id="confirm-daftar-gejala" class="max-h-48 overflow-y-auto space-y-1.5 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs font-medium text-slate-700">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button type="button" id="cancel-submit-btn" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors">
+                    Perbaiki Data
+                </button>
+                <button type="button" id="proceed-submit-btn" class="px-6 py-2.5 bg-gradient-to-r from-medical-600 to-emerald-500 hover:from-medical-700 hover:to-emerald-600 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                    Ya, Analisis Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Premium Custom Warning Modal -->
     <div id="warning-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
         <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl max-w-sm w-full mx-4 border border-slate-100 space-y-5 transform scale-95 transition-transform duration-300">
@@ -235,6 +276,12 @@
         const warningModal = document.getElementById('warning-modal');
         const closeWarningBtn = document.getElementById('close-warning-btn');
         const loadingOverlay = document.getElementById('loading-overlay');
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmNamaPasien = document.getElementById('confirm-nama-pasien');
+        const confirmJumlahGejala = document.getElementById('confirm-jumlah-gejala');
+        const confirmDaftarGejala = document.getElementById('confirm-daftar-gejala');
+        const cancelSubmitBtn = document.getElementById('cancel-submit-btn');
+        const proceedSubmitBtn = document.getElementById('proceed-submit-btn');
         const form = document.querySelector('form');
 
         function showWarningModal() {
@@ -253,8 +300,28 @@
             }, 300);
         }
 
+        function showConfirmModal() {
+            confirmModal.classList.remove('hidden');
+            setTimeout(() => {
+                confirmModal.classList.remove('opacity-0');
+                confirmModal.querySelector('.transform').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function hideConfirmModal() {
+            confirmModal.classList.add('opacity-0');
+            confirmModal.querySelector('.transform').classList.add('scale-95');
+            setTimeout(() => {
+                confirmModal.classList.add('hidden');
+            }, 300);
+        }
+
         if (closeWarningBtn) {
             closeWarningBtn.addEventListener('click', hideWarningModal);
+        }
+
+        if (cancelSubmitBtn) {
+            cancelSubmitBtn.addEventListener('click', hideConfirmModal);
         }
         
         checkboxes.forEach(cb => {
@@ -272,25 +339,60 @@
             resetBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
-                document.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
             });
         }
 
-        // Show loading screen transition on form submit
-        if (form && loadingOverlay) {
+        // Show confirm modal before loading transition
+        if (form) {
             form.addEventListener('submit', function (e) {
-                // If form is valid (e.g. required inputs completed), show loader
+                e.preventDefault();
+
                 const nameInput = document.getElementById('nama_pasien');
-                const radioChecked = document.querySelector('input[type="radio"][name="pola_demam"]:checked');
+                const checkedBoxes = Array.from(document.querySelectorAll('input[type="checkbox"][name="id_gejala[]"]:checked'));
                 
-                if (nameInput && nameInput.value.trim() !== '' && radioChecked) {
-                    loadingOverlay.classList.remove('hidden');
-                    setTimeout(() => {
-                        loadingOverlay.classList.remove('opacity-0');
-                        loadingOverlay.querySelector('.transform').classList.remove('scale-95');
-                    }, 10);
+                if (!nameInput || nameInput.value.trim() === '') {
+                    nameInput.focus();
+                    return;
                 }
+
+                if (checkedBoxes.length === 0) {
+                    alert('Silakan pilih minimal satu gejala.');
+                    return;
+                }
+
+                // Isi data ke modal konfirmasi
+                confirmNamaPasien.textContent = nameInput.value.trim();
+                confirmJumlahGejala.textContent = `${checkedBoxes.length} Gejala`;
+
+                confirmDaftarGejala.innerHTML = '';
+                checkedBoxes.forEach((cb, idx) => {
+                    const labelText = cb.closest('label').querySelector('span').textContent.trim();
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center space-x-2 bg-white p-2 rounded-lg border border-slate-100';
+                    item.innerHTML = `<span class="w-5 h-5 rounded-full bg-medical-100 text-medical-700 flex items-center justify-center font-bold text-[10px]">${idx + 1}</span><span class="text-slate-700 font-semibold">${labelText}</span>`;
+                    confirmDaftarGejala.appendChild(item);
+                });
+
+                showConfirmModal();
             });
+
+            if (proceedSubmitBtn) {
+                proceedSubmitBtn.addEventListener('click', function () {
+                    hideConfirmModal();
+                    
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.remove('hidden');
+                        setTimeout(() => {
+                            loadingOverlay.classList.remove('opacity-0');
+                            loadingOverlay.querySelector('.transform').classList.remove('scale-95');
+                        }, 10);
+                    }
+
+                    setTimeout(() => {
+                        form.submit();
+                    }, 400);
+                });
+            }
         }
     });
     </script>

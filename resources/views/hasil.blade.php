@@ -147,9 +147,7 @@
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider font-outfit border-b border-slate-100 pb-2">
                             Rekomendasi Tindakan / Solusi Awal
                         </h3>
-                        <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100 leading-relaxed text-sm text-slate-700 whitespace-pre-line">
-                            {{ $riwayat->solusi }}
-                        </div>
+                        <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100 leading-relaxed text-sm text-slate-700 font-normal">{{ trim($riwayat->solusi) }}</div>
                     </div>
                 @else
                     <!-- Non-Specific Warning Layout -->
@@ -213,7 +211,7 @@
             <div class="text-center">
                 <p class="text-sm font-semibold text-slate-700">Petugas / Pakar Sistem</p>
                 <div class="h-20 border-b border-dashed border-slate-300"></div>
-                <p class="text-sm font-medium text-slate-600 mt-2">PakarDemam AI</p>
+                <p class="text-sm font-medium text-slate-600 mt-2">Fahry Yusuf</p>
             </div>
         </div>
 

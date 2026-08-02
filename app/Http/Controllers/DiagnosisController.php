@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Gejala;
 use App\Models\Penyakit;
 use App\Models\RiwayatDiagnosa;
+use App\Models\AturanRule;
 
 class DiagnosisController extends Controller
 {
@@ -26,53 +27,86 @@ class DiagnosisController extends Controller
         // 1. Validate the input
         $request->validate([
             'nama_pasien' => 'required|string|max:255',
-            'pola_demam' => 'required|string|exists:gejala,id_gejala',
-            'id_gejala' => 'nullable|array',
+            'id_gejala' => 'required|array|min:1',
             'id_gejala.*' => 'string|exists:gejala,id_gejala',
         ], [
             'nama_pasien.required' => 'Nama pasien wajib diisi.',
-            'pola_demam.required' => 'Pola demam utama wajib dipilih.',
+            'id_gejala.required' => 'Pilih minimal satu gejala untuk berkonsultasi.',
+            'id_gejala.min' => 'Pilih minimal satu gejala untuk berkonsultasi.',
         ]);
 
-        $userGejalaIds = $request->input('id_gejala', []);
-        if ($request->filled('pola_demam')) {
-            $userGejalaIds[] = $request->input('pola_demam');
+        $userGejalaIds = array_unique($request->input('id_gejala', []));
+        // Otomatis tambahkan G01 (Demam tinggi) karena ini adalah aplikasi diagnosa demam
+        if (!in_array('G01', $userGejalaIds)) {
+            $userGejalaIds[] = 'G01';
         }
 
-        // 2. Fetch all diseases with their mapped symptoms
-        $penyakits = Penyakit::with('gejala')->get();
+        // 2. Ambil Aturan Knowledge Base secara dinamis dari Database Supabase (aturan_rule)
+        // Mendukung beberapa variasi/kelompok rule untuk penyakit yang sama
+        $allRules = AturanRule::select('id_penyakit', 'id_gejala')->get();
+        $ruleBase = [];
 
-        $scores = [];
+        // Kelompokkan rule unik per penyakit (Rule Utama & Rule Alternatif jika ada)
+        $diseaseRulesMap = [];
+        foreach ($allRules as $r) {
+            $diseaseRulesMap[$r->id_penyakit][] = $r->id_gejala;
+        }
 
-        foreach ($penyakits as $penyakit) {
-            $ruleGejalaIds = $penyakit->gejala->pluck('id_gejala')->toArray();
-            $totalRuleGejala = count($ruleGejalaIds);
+        $ruleCounter = 1;
+        foreach ($diseaseRulesMap as $penyakitId => $gejalaList) {
+            $uniqueGejalaList = array_values(array_unique($gejalaList));
+            $ruleBase[] = [
+                'code' => 'R' . str_pad($ruleCounter++, 2, '0', STR_PAD_LEFT),
+                'id_penyakit' => $penyakitId,
+                'gejala' => $uniqueGejalaList,
+            ];
+        }
 
-            if ($totalRuleGejala === 0) {
+        $penyakits = Penyakit::all()->keyBy('id_penyakit');
+        $diseaseScores = [];
+
+        // Evaluasi ke-20 rule
+        foreach ($ruleBase as $rule) {
+            $penyakitId = $rule['id_penyakit'];
+            if (!isset($penyakits[$penyakitId])) {
                 continue;
             }
 
-            // Hitung irisan gejala pilihan user dengan aturan penyakit
+            $ruleGejalaIds = $rule['gejala'];
+            $totalRuleGejala = count($ruleGejalaIds);
+
+            // Hitung gejala cocok dengan rule ini
             $matchingGejalaIds = array_intersect($userGejalaIds, $ruleGejalaIds);
             $matchCount = count($matchingGejalaIds);
 
-            // Rumus Base Score = (Jumlah Cocok / Total Wajib) * 100%
+            if ($matchCount === 0) {
+                continue;
+            }
+
             $baseScore = ($matchCount / $totalRuleGejala) * 100;
-
-            // Hitung gejala tambahan (pilihan user yang TIDAK ADA di rule)
             $extraSymptoms = array_diff($userGejalaIds, $ruleGejalaIds);
-            $penalty = count($extraSymptoms) * 2;
 
-            // Skor akhir = Base Score - Penalty (min 0)
-            $score = max(0, $baseScore - $penalty);
+            // Jika 100% gejala dari rule terpenuhi (Exact Match), skor = 100%
+            if ($matchCount === $totalRuleGejala) {
+                $score = 100;
+            } else {
+                $penalty = count($extraSymptoms) * 2;
+                $score = max(0, $baseScore - $penalty);
+            }
 
-            $scores[] = [
-                'penyakit' => $penyakit,
-                'score' => $score,
-                'match_count' => $matchCount,
-                'matching_gejala_ids' => array_values($matchingGejalaIds)
-            ];
+            // Simpan skor tertinggi per penyakit
+            if (!isset($diseaseScores[$penyakitId]) || $score > $diseaseScores[$penyakitId]['score']) {
+                $diseaseScores[$penyakitId] = [
+                    'penyakit' => $penyakits[$penyakitId],
+                    'score' => $score,
+                    'match_count' => $matchCount,
+                    'matching_gejala_ids' => array_values($matchingGejalaIds),
+                    'matched_rule' => $rule['code']
+                ];
+            }
         }
+
+        $scores = array_values($diseaseScores);
 
         // Urutkan skor secara descending
         // Jika skor sama, urutkan berdasarkan jumlah gejala cocok terbanyak
@@ -85,8 +119,10 @@ class DiagnosisController extends Controller
 
         $topMatch = !empty($scores) ? $scores[0] : null;
 
-        // Ambil semua nama gejala yang dipilih user untuk disimpan ke dalam riwayat
-        $selectedGejalaNames = Gejala::whereIn('id_gejala', $userGejalaIds)
+        // Ambil semua nama gejala yang dipilih user (tanpa G01) untuk disimpan ke dalam riwayat
+        $displayUserGejalaIds = array_values(array_diff($userGejalaIds, ['G01']));
+
+        $selectedGejalaNames = Gejala::whereIn('id_gejala', $displayUserGejalaIds)
             ->orderBy('id_gejala', 'asc')
             ->pluck('nama_gejala')
             ->toArray();
@@ -97,8 +133,10 @@ class DiagnosisController extends Controller
             $solusi = $matchedPenyakit->solusi;
             $scoreValue = round($topMatch['score'], 1);
 
-            // Ambil semua nama gejala yang cocok
-            $matchedGejalaNames = Gejala::whereIn('id_gejala', $topMatch['matching_gejala_ids'])
+            // Ambil semua nama gejala yang cocok (tanpa G01 untuk tampilan)
+            $displayMatchedGejalaIds = array_values(array_diff($topMatch['matching_gejala_ids'], ['G01']));
+
+            $matchedGejalaNames = Gejala::whereIn('id_gejala', $displayMatchedGejalaIds)
                 ->orderBy('id_gejala', 'asc')
                 ->pluck('nama_gejala')
                 ->toArray();
