@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminPenyakitController;
 use App\Http\Controllers\Admin\AdminGejalaController;
 use App\Http\Controllers\Admin\AdminRuleController;
+use App\Http\Controllers\Admin\AdminRiwayatController;
 
 // Public Client Routes
 Route::get('/', function () {
@@ -46,5 +47,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/rules/{id}', [AdminRuleController::class, 'show'])->name('admin.rules.show');
         Route::post('/rules', [AdminRuleController::class, 'store'])->name('admin.rules.store');
         Route::delete('/rules/{id}', [AdminRuleController::class, 'destroy'])->name('admin.rules.destroy');
+
+        // Riwayat Konsultasi
+        Route::get('/riwayat', [AdminRiwayatController::class, 'index'])->name('admin.riwayat.index');
+        Route::delete('/riwayat/{id}', [AdminRiwayatController::class, 'destroy'])->name('admin.riwayat.destroy');
     });
 });

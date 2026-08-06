@@ -62,10 +62,10 @@
             </a>
 
             <!-- Diagnosa Stat -->
-            <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <a href="{{ route('admin.riwayat.index') }}" class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
                 <div class="flex justify-between items-center mb-3">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Konsultasi</span>
-                    <div class="p-2.5 bg-purple-50 text-purple-600 rounded-2xl">
+                    <div class="p-2.5 bg-purple-50 text-purple-600 rounded-2xl group-hover:bg-purple-600 group-hover:text-white transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
@@ -73,7 +73,7 @@
                 </div>
                 <div class="text-3xl font-outfit font-extrabold text-slate-900">{{ $totalRiwayat }}</div>
                 <p class="text-xs text-slate-500 mt-1 font-medium">Riwayat Diagnosa Pasien</p>
-            </div>
+            </a>
         </div>
 
         <!-- Recent Activity Logs Section -->
