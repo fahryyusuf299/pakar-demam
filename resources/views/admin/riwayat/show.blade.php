@@ -19,7 +19,23 @@
         $otherList = array_diff($selectedList, $matchedList);
     @endphp
 
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-3xl mx-auto space-y-6">
+        <!-- Breadcrumb & Back Navigation (Disembunyikan saat cetak) -->
+        <div class="flex items-center justify-between no-print">
+            <div class="flex items-center space-x-2 text-xs font-semibold text-slate-500">
+                <a href="{{ route('admin.riwayat.index') }}" class="hover:text-medical-600 transition-colors">Riwayat Konsultasi</a>
+                <span>&rarr;</span>
+                <span class="text-slate-800 font-bold">Detail Pasien {{ $riwayat->nama_pasien }}</span>
+            </div>
+
+            <a href="{{ route('admin.riwayat.index') }}" class="inline-flex items-center px-3.5 py-1.5 border border-slate-200 text-xs font-bold rounded-xl text-slate-600 bg-white hover:bg-slate-50 transition-colors">
+                <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Kembali ke Riwayat Konsultasi
+            </a>
+        </div>
+
         <!-- Print Header (Hanya tampil saat pencetakan) -->
         <div class="hidden print:block text-center border-b-2 border-slate-300 pb-6 mb-8">
             <h1 class="text-3xl font-extrabold font-outfit text-slate-900">LAPORAN HASIL DIAGNOSIS MEDIS</h1>
@@ -28,16 +44,10 @@
         </div>
 
         <!-- Header Bar & Actions (Disembunyikan saat cetak) -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 no-print">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 no-print bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
             <div>
-                <a href="{{ route('admin.riwayat.index') }}" class="inline-flex items-center text-xs font-bold text-slate-500 hover:text-medical-600 mb-1 transition-colors">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                    </svg>
-                    Kembali ke Daftar Riwayat
-                </a>
-                <h1 class="text-2xl font-outfit font-extrabold text-slate-900">Detail Konsultasi Client</h1>
-                <p class="text-xs text-slate-500 font-medium">Laporan rincian hasil diagnosa dan gejala yang diisi oleh pasien.</p>
+                <h1 class="text-2xl font-outfit font-extrabold text-slate-900">Detail Konsultasi Pasien</h1>
+                <p class="text-xs text-slate-500 font-medium mt-1">Laporan rincian hasil diagnosa dan gejala yang diisi oleh pasien.</p>
             </div>
 
             <div class="flex gap-3 w-full sm:w-auto">
@@ -205,6 +215,8 @@
                         <strong>PERINGATAN:</strong> Rekomendasi di atas hanyalah panduan pertolongan pertama (pertolongan awal). Apabila gejala demam terus meningkat, lemas, atau tidak kunjung turun setelah 3 hari, harap segera lakukan konsultasi langsung ke dokter atau datangi <strong>Klinik Amanah Riau Kepri</strong> untuk penanganan medis profesional.
                     </div>
                 </div>
+            </div>
+
             </div>
         </div>
 

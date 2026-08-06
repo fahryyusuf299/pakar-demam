@@ -111,22 +111,6 @@
                 </table>
             </div>
 
-            <!-- Bottom Action Footer below table -->
-            <div class="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <a href="{{ route('admin.rules.index') }}" class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-slate-200 text-xs font-bold rounded-xl text-slate-600 bg-white hover:bg-slate-50 transition-colors">
-                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                    </svg>
-                    Kembali ke Halaman Sebelumnya
-                </a>
-
-                <button onclick="document.getElementById('add-rule-symptom-modal').classList.remove('hidden')"
-                        class="w-full sm:w-auto inline-flex justify-center items-center px-5 py-2.5 bg-gradient-to-r from-medical-600 to-emerald-500 hover:from-medical-700 hover:to-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all space-x-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <span>+ Tambah Gejala ke Aturan Ini</span>
-                </button>
             </div>
         </div>
     </div>
