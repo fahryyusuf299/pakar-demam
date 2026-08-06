@@ -29,6 +29,16 @@ class AdminRiwayatController extends Controller
     }
 
     /**
+     * Show detail of specific consultation history for admin.
+     */
+    public function show($id)
+    {
+        $riwayat = RiwayatDiagnosa::findOrFail($id);
+
+        return view('admin.riwayat.show', compact('riwayat'));
+    }
+
+    /**
      * Remove the specified consultation history from storage.
      */
     public function destroy($id)

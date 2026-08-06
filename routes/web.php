@@ -50,6 +50,7 @@ Route::prefix('admin')->group(function () {
 
         // Riwayat Konsultasi
         Route::get('/riwayat', [AdminRiwayatController::class, 'index'])->name('admin.riwayat.index');
+        Route::get('/riwayat/{id}', [AdminRiwayatController::class, 'show'])->name('admin.riwayat.show');
         Route::delete('/riwayat/{id}', [AdminRiwayatController::class, 'destroy'])->name('admin.riwayat.destroy');
     });
 });

@@ -38,11 +38,42 @@
             }
         }
     </script>
+    <style>
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            header, nav, footer {
+                display: none !important;
+            }
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .max-w-7xl, .max-w-3xl, .max-w-4xl {
+                max-width: 100% !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .print-card {
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+        }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
 
     <!-- Admin Top Header -->
-    <header class="bg-slate-900 text-white sticky top-0 z-40 border-b border-slate-800">
+    <header class="bg-slate-900 text-white sticky top-0 z-40 border-b border-slate-800 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 <!-- Brand -->
@@ -78,7 +109,7 @@
     </header>
 
     <!-- Admin Navigation Bar -->
-    <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30">
+    <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-16 z-30 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex space-x-1 sm:space-x-4 overflow-x-auto py-2">
                 <a href="{{ route('admin.dashboard') }}" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 whitespace-nowrap {{ request()->routeIs('admin.dashboard') ? 'bg-medical-50 text-medical-700 border border-medical-100 shadow-sm' : 'text-slate-600 hover:bg-slate-50' }}">
@@ -97,7 +128,7 @@
 
                 <a href="{{ route('admin.gejala.index') }}" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 whitespace-nowrap {{ request()->routeIs('admin.gejala.*') ? 'bg-medical-50 text-medical-700 border border-medical-100 shadow-sm' : 'text-slate-600 hover:bg-slate-50' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
                     <span>Data Gejala</span>
                 </a>
@@ -127,7 +158,7 @@
     </nav>
 
     <!-- Global Alert Notifications -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 no-print">
         @if (session('success'))
             <div class="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold rounded-2xl flex items-center space-x-3 shadow-sm">
                 <svg class="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +185,7 @@
         </div>
     </main>
 
-    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 font-medium">
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 font-medium no-print">
         <p>&copy; {{ date('Y') }} PakarDemam Admin Panel v4.0 - Klinik Amanah Riau Kepri</p>
     </footer>
 
